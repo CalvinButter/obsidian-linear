@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "linear-link",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Plugin to link Issue IDs in your notes to details in Linear",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -20,5 +20,9 @@
 		"obsidian": "latest",
 		"tslib": "2.4.0",
 		"typescript": "4.7.4"
+	},
+	"dependencies": {
+		"@linear/sdk": "^14.0.0",
+		"graphql": "^16.8.1"
 	}
 }
