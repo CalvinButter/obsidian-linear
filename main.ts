@@ -1,5 +1,7 @@
 import {
 	App,
+	TAbstractFile,
+	TFile,
 	Editor,
 	MarkdownView,
 	Plugin,
@@ -10,10 +12,12 @@ import { getIssue } from "api";
 
 interface LinearSettings {
 	apiKey: string;
+	workspaceName: string;
 	ticketPrefixes: string;
 }
 const DEFAULT_SETTINGS: LinearSettings = {
 	apiKey: "",
+	workspaceName: "",
 	ticketPrefixes: "",
 };
 
@@ -23,14 +27,28 @@ export default class LinearPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: "link-linear-tickets",
-			name: "Link Linear Tickets",
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				getIssue(this.settings.apiKey, "ENG");
-			},
-		});
+		this.registerEvent(
+			this.app.vault.on("modify", (f: TAbstractFile) => {
+				if (f instanceof TFile) {
+					const prefixes: string = this.settings.ticketPrefixes
+						.split(",")
+						.map((s) => s.trim())
+						.join("|");
+					const regex = new RegExp(
+						`\\[((?:${prefixes})-[0-9]{1,8})\\](?!\\(http)`,
+						"g",
+					);
+
+					this.app.vault.process(f, (data: string) => {
+						return data.replace(
+							regex,
+							(match, p1) =>
+								`${match}(https://linear.app/${this.settings.workspaceName}/issue/${p1})`,
+						);
+					});
+				}
+			}),
+		);
 
 		this.addSettingTab(new SettingsTab(this.app, this));
 	}
@@ -76,6 +94,21 @@ class SettingsTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+
+		// TODO: support multiple workspaces, each with its own set of prefixes
+		new Setting(containerEl)
+			.setName("Workspace Name")
+			.setDesc(
+				"found in the url of an issue, i.e https://linear.app/{WorkspaceName}/issue/PREF-9745",
+			)
+			.addText((text) => {
+				text.setValue(this.plugin.settings.workspaceName).onChange(
+					async (value) => {
+						this.plugin.settings.workspaceName = value;
+						await this.plugin.saveSettings();
+					},
+				);
+			});
 
 		new Setting(containerEl)
 			.setName("Ticket Prefixes")
